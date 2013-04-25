@@ -57,9 +57,11 @@ void init()
 	force_vector = new double**[thread_num];
 	for(int i=0;i<thread_num;i++)
 	{
-		force_vector[i] = new double*[2];
-		force_vector[i][0] = new double[particles+1];
-		force_vector[i][1] = new double[particles+1];
+		force_vector[i] = new double*[particles+1];
+		for(int j=0;j<particles+1;j++)
+		{
+			force_vector[i][j] = new double[2];
+		}
 	}
 }
 
@@ -176,7 +178,7 @@ void wind_calculator(int id,int thread_id)
 {
 	point aux = v_xy(parray[turn][id].pos_x,parray[turn][id].pos_y);
 	force_vector[thread_id][0][0] = aux.px;
-	force_vector[thread_id][1][0] = aux.py;
+	force_vector[thread_id][0][1] = aux.py;
 }
 
 void calculate_forces(int id)

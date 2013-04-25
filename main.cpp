@@ -9,7 +9,6 @@
 
 
 
-
 using namespace std;
 
 struct particle
@@ -20,11 +19,17 @@ struct particle
 	double charge;
 };
 
+struct point
+{
+	double px;
+	double py;
+};
+
 
 struct particle *parray[2];
 list <int> **particle_position;
 list <array<int,2>> used;
-double iteration_time, charge_const,epsilon,size_x,size_y,polynomial[2][6];
+double iteration_time, charge_const,epsilon,size_x,size_y,polynomial[2][6], ***force_vector;
 int partition_x,partition_y,particles, iterations, thread_num, turn;
 
 
@@ -48,6 +53,13 @@ void init()
 	for(volatile int i=0;i<partition_x;i++)
 	{
 		particle_position[i] = new list<int>[partition_y];
+	}
+	force_vector = new double**[thread_num];
+	for(int i=0;i<thread_num;i++)
+	{
+		force_vector[i] = new double*[2];
+		force_vector[i][0] = new double[particles+1];
+		force_vector[i][1] = new double[particles+1];
 	}
 }
 
@@ -82,14 +94,20 @@ void read_polynomial(char *fname)
 
 
 
-double vx(double px, double py)
+point v_xy(double px, double py)
 {
-	return polynomial[0][0]*pow(px,4)+polynomial[0][1]*pow(px,3)*py+polynomial[0][2]*pow(px,2)*pow(py,2)+polynomial[0][3]*px*pow(py,3)+polynomial[0][4]*pow(py,4)+polynomial[0][5];
-}
-
-double vy(double px, double py)
-{
-	return polynomial[1][0]*pow(px,4)+polynomial[1][1]*pow(px,3)*py+polynomial[1][2]*pow(px,2)*pow(py,2)+polynomial[1][3]*px*pow(py,3)+polynomial[1][4]*pow(py,4)+polynomial[1][5];
+	point p;
+	double pxy = px*py;
+	double pxx = px*px;
+	double pyy = py*py;
+	double pxxxx = pxx*pxx;
+	double pxxxy = pxx*pxy;
+	double pxxyy = pxx*pyy;
+	double pxyyy = pxy*pxx;
+	double pyyyy = pyy*pyy;
+	p.px = polynomial[0][0]*pxxxx+polynomial[0][1]*pxxxy+polynomial[0][2]*pxxyy+polynomial[0][3]*pxyyy+polynomial[0][4]*pyyyy+polynomial[0][5];
+	p.py = polynomial[1][0]*pxxxx+polynomial[1][1]*pxxxy+polynomial[1][2]*pxxyy+polynomial[1][3]*pxyyy+polynomial[1][4]*pyyyy+polynomial[1][5];
+	return p;
 }
 
 array<int,2> find_particle_position_in_matrix(int id)
@@ -154,26 +172,29 @@ void print_used()
 }
 
 
-void wind_calculator(int id,double **force_vector)
+void wind_calculator(int id,int thread_id)
 {
-	force_vector[0][0] = vx(parray[turn][id].pos_x,parray[turn][id].pos_y)*iteration_time;
-	force_vector[1][0] = vy(parray[turn][id].pos_x,parray[turn][id].pos_y)*iteration_time;
+	point aux = v_xy(parray[turn][id].pos_x,parray[turn][id].pos_y);
+	force_vector[thread_id][0][0] = aux.px;
+	force_vector[thread_id][1][0] = aux.py;
 }
 
 void calculate_forces(int id)
 {
-	int force_size = 1;
-	double **force_vector = new double*[2];
-	force_vector[0] = new double[particles+1];
-	force_vector[1] = new double[particles+1];
-	wind_calculator(id,force_vector);
+	int thread_id,force_size = 1;
+	thread_id = omp_get_thread_num();
+	printf("Thread ID %d\n",thread_id);
+	wind_calculator(id,thread_id);
 }
 
 
 
 int main(int argc, char *argv[])
 {
-	int treads_num = omp_get_num_procs();
+	//int teste;
+	thread_num = omp_get_num_procs();
+	if(argc == 8) thread_num = atoi(argv[7]);
+	omp_set_num_threads(thread_num);
 	epsilon = atof(argv[4]);
 	charge_const = atof(argv[3]);
 	iterations = atoi(argv[6]);
@@ -185,18 +206,19 @@ int main(int argc, char *argv[])
 	print_particle_position();
 	print_parray();
 	print_used();
-
-	for(int i=0;i<iterations;i++)
-	{
-#pragma num_threads(thread_num) 
-#pragma omp parallel for
+	#pragma omp parallel for
 		for(int id=0;id<particles;id++)
 		{
 			calculate_forces(id);
 		}
-#pragma omp barrier
-	}
+		#pragma omp barrier
+	//}
+	/* WINDOWS OK, FUNCIONA EM LINUX?
+	teste = 	65535;
+	printf("TESTE %d\n",teste);
 
-
+	teste = 2147483747 ;
+	printf("TESTE %d\n",teste);
+	*/
 	return 0;
 }

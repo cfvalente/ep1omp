@@ -7,7 +7,12 @@
 #include <fstream>
 #include <array>
 
-
+#define DEBUG 1
+#ifdef DEBUG
+# define print(x) printf x
+#else
+# define print(x) do {} while (0)
+#endif
 
 using namespace std;
 
@@ -30,14 +35,15 @@ struct particle *parray[2];
 list <int> **particle_position;
 list <array<int,2>> used;
 double iteration_time, charge_const,epsilon,size_x,size_y,polynomial[2][6], ***force_vector;
-int partition_x,partition_y,particles, iterations, thread_num, turn;
+int partition_x,partition_y,particles, iterations, thread_num;
+bool turn;
 
 
 void calculate_partitions()
 {
 	partition_x = (int)ceil(size_x/epsilon);
 	partition_y = (int)ceil(size_y/epsilon);
-	printf("%d %d\n",partition_x,partition_y);
+	print(("%d %d\n",partition_x,partition_y));
 
 }
 
@@ -78,6 +84,13 @@ void read_particles(char *fname)
 		getline(file,line);
 		sscanf(line.c_str(),"%lf %lf %lf %lf",&parray[0][id].pos_x,&parray[0][id].pos_y,&parray[0][id].charge,&parray[0][id].radius);
 		id++;
+	}
+	for(int i=0;i<particles;i++)
+	{
+		parray[1][i].pos_x = parray[0][i].pos_x;
+		parray[1][i].pos_y = parray[0][i].pos_y;
+		parray[1][i].charge = parray[0][i].charge;
+		parray[1][i].radius = parray[0][i].radius;
 	}
 	return;
 }
@@ -162,15 +175,16 @@ void print_used()
 {
 	int i = 0;
 	list<array<int,2>> uni;
+	used.unique();
 	used.sort();
 	used.unique();
-	printf("Size: %d\n",used.size());
+	print(("Size: %d\n",used.size()));
 	for(list<array<int,2>>::iterator it=used.begin(); it!=used.end(); it++)
 	{
 		printf("Used:  %d  %d\n", ((array<int,2>)*it)[0],((array<int,2>)*it)[1]);
 		i++;
 	}
-	printf("i: %d\n",i);
+	print(("i: %d\n",i));
 }
 
 
@@ -181,15 +195,54 @@ void wind_calculator(int id,int thread_id)
 	force_vector[thread_id][0][1] = aux.py;
 }
 
+
+double distance(double p1x,double p1y, double p2x, double p2y)
+{
+	double px = p1x-p2x;
+	double py = p1y-p2y;
+	return sqrt(px*px+py*py);
+}
+
+/* Note que se as particulas tiverem a mesma carga, entao a força resultante será positiva */
+double force(double dist, double q1, double q2)
+{
+	return (charge_const*q1*q2)/(dist*dist);
+}
+
+int collision_detection(int id,int thread_id, int force_size)
+{
+	particle p,paux;
+	list<int>::iterator it;
+	list<int> aux;
+	array<int,2> position = find_particle_position_in_matrix(id);
+	double dist,ang,f;
+	aux = particle_position[position[0]][position[1]];
+	p = parray[turn][id];
+	for(it = aux.begin(); it != aux.end(); it++)
+	{
+		paux = parray[turn][*it];
+		dist = distance(p.pos_x,p.pos_y,paux.pos_x,paux.pos_y);
+		if(dist < epsilon && dist > (p.radius+paux.radius))
+		{
+			f = force(dist,p.charge,paux.charge);
+			ang = atan2(p.pos_y-paux.pos_y,p.pos_x-paux.pos_x);
+			force_vector[thread_id][force_size][0] = f*cos(ang);
+			force_vector[thread_id][force_size][1] = f*sin(ang);
+			force_size++;
+			print(("Forca resultante em %d \nX: %lf Y: %lf\n",id,force_vector[thread_id][force_size-1][0],force_vector[thread_id][force_size-1][1]));
+		}
+	}
+	return force_size;
+}
+
 void calculate_forces(int id)
 {
 	int thread_id,force_size = 1;
 	thread_id = omp_get_thread_num();
-	printf("Thread ID %d\n",thread_id);
+	print(("Thread ID %d\n",thread_id));
 	wind_calculator(id,thread_id);
+	force_size = collision_detection(id,thread_id,force_size);
 }
-
-
 
 int main(int argc, char *argv[])
 {
@@ -208,7 +261,7 @@ int main(int argc, char *argv[])
 	print_particle_position();
 	print_parray();
 	print_used();
-	#pragma omp parallel for
+	#pragma omp parallel for schedule(static) 
 		for(int id=0;id<particles;id++)
 		{
 			calculate_forces(id);
@@ -222,5 +275,6 @@ int main(int argc, char *argv[])
 	teste = 2147483747 ;
 	printf("TESTE %d\n",teste);
 	*/
+	system("PAUSE");
 	return 0;
 }

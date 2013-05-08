@@ -6,6 +6,7 @@
 #include <string>
 #include <fstream>
 #include <array>
+#include <math.h>
 
 
 #ifdef DEBUG
@@ -82,7 +83,7 @@ void read_particles(char *fname)
 	string line;
 	ifstream file (fname);
 	getline(file,line);
-	sscanf_s(line.c_str(),"%d %lf %lf",&particles,&size_x,&size_y);
+	sscanf(line.c_str(),"%d %lf %lf",&particles,&size_x,&size_y);
 	init();
 	while(file.good())
 	{
@@ -316,4 +317,4 @@ int main(int argc, char *argv[])
 	}
 	print_f();
 	return 0;
-}
+}s

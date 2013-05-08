@@ -107,8 +107,10 @@ void read_particles(char *fname)
 array<int,2> find_particle_position_in_matrix(int id,bool turn)
 {
 	array<int,2> var;
-	var[0] = (int)floor(parray[turn][id].pos_x/epsilon)+1;
-	var[1] = (int)floor(parray[turn][id].pos_y/epsilon)+1;
+	if(parray[turn][id].pos_x == size_x) var[0] = partition_x-2;
+	else var[0] = (int)floor(parray[turn][id].pos_x/epsilon)+1;
+	if(parray[turn][id].pos_y == size_y) var[1] = partition_y-2;
+	else var[1] = (int)floor(parray[turn][id].pos_y/epsilon)+1;
 	return var;
 }
 
@@ -116,11 +118,13 @@ array<int,2> find_particle_position_in_matrix(int id,bool turn)
 void calculate_particle_position(int id,bool turn)
 {
 	array<int,2> var = find_particle_position_in_matrix(id,turn);
+	print(("Calculate particle position -- "));
 	#pragma omp critical
 	{
 		used.push_front(var);
 		particle_position[turn][var[0]][var[1]].push_front(id);
 	}
+	print(("calculate particle OK!\n"));
 }
 
 
@@ -197,6 +201,8 @@ int collision_detection(int id,int thread_id, int position_x, int position_y, in
 	list<int>::iterator it;
 	list<int> aux;
 	double dist,ang,f;
+	print(("Collision detection -- "));
+	print(("id %d - tid %d - posx %d - posy %d - fsize %d  ",id,thread_id,position_x,position_y,force_size));
 	aux = particle_position[turn][position_x][position_y];
 	p = parray[turn][id];
 	for(it = aux.begin(); it != aux.end(); it++)
@@ -213,6 +219,7 @@ int collision_detection(int id,int thread_id, int position_x, int position_y, in
 			print(("Forca resultante em %d com dist = %lf\nX: %lf Y: %lf\n",id,dist,force_vector[thread_id][force_size-1][0],force_vector[thread_id][force_size-1][1]));
 		}
 	}
+	print(("collision OK!\n"));
 	return force_size;
 }
 
@@ -220,29 +227,31 @@ void final_position(int id, int thread_id)
 {
 	int divx,divy;
 	double sx,sy;
+	print(("Final position -- "));
 	sx = parray[turn][id].pos_x+parray[turn][id].vx*iteration_time+force_vector[thread_id][0][0]*half_square_iterations_time;
 	sy = parray[turn][id].pos_y+parray[turn][id].vy*iteration_time+force_vector[thread_id][0][1]*half_square_iterations_time;
 	/* Atualiza a força no final */
 	divx = 0;
-	divy = 1;
-	while((sx > size_x || sx < 0) || (sy > size_y || sy < 0))
+	divy = 0;
+	/* POSSIVELMENTE MUDAR PARA while */
+	if((sx >= size_x || sx <= 0) || (sy >= size_y || sy <= 0))
 	{
-		if(sx>size_x)
+		if(sx>=size_x)
 		{
 			sx = 2*size_x - sx;
 			divx++;
 		}
-		else if(sx<0)
+		else if(sx<=0)
 		{
 			sx = -sx;
 			divx++;
 		}
-		else if(sy>size_y)
+		if(sy>=size_y)
 		{
 			sy = 2*size_y -sy;
 			divy++;
 		}
-		else if(sy<0)
+		else if(sy<=0)
 		{
 			sy = -sy;
 			divy++;
@@ -252,6 +261,7 @@ void final_position(int id, int thread_id)
 	parray[!turn][id].pos_y = sy;
 	parray[!turn][id].vx = (parray[turn][id].vx+force_vector[thread_id][0][0]*iteration_time)/pow(2,divx);
 	parray[!turn][id].vy = (parray[turn][id].vy+force_vector[thread_id][0][1]*iteration_time)/pow(2,divy);
+	print(("final Ok!\n"));
 	calculate_particle_position(id,!turn);
 }
 
@@ -259,6 +269,12 @@ void calculate_forces(int id)
 {
 	int thread_id,force_size = 0;
 	array<int,2> position = find_particle_position_in_matrix(id,turn);
+	print(("Calculate forces"));
+	if(position[0] == 5 || position[0] == 0 || position[1] == 5 || position[0] == 0) 
+	{ 
+		print(("VAI FUDER!\n")); 
+		fflush(0);
+	}
 	thread_id = omp_get_thread_num();
 	force_vector[thread_id][0][0] = 0;
 	force_vector[thread_id][0][1] = 0;
@@ -278,6 +294,7 @@ void calculate_forces(int id)
 		force_vector[thread_id][0][1] += force_vector[thread_id][id][1];
 	}
 	final_position(id,thread_id);
+	print(("calculate Ok!\n"));
 }
 
 int main(int argc, char *argv[])
@@ -317,4 +334,4 @@ int main(int argc, char *argv[])
 	}
 	print_f();
 	return 0;
-}s
+}

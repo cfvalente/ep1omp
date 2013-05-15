@@ -1,3 +1,8 @@
+// Caio de Freitas Valente 6552442
+// Geraldo Castro Zampoli  6552380
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
@@ -72,7 +77,6 @@ void init()
 		force_vector[i] = new double*[particles];
 		for(int j=0;j<particles;j++)
 		{
-			/* VOTAR PARA double[2]; */
 			force_vector[i][j] = new double[2];
 		}
 	}
@@ -203,24 +207,8 @@ int collision_detection(int id,int thread_id, int position_x, int position_y, in
 		{
 			f = force(dist,p.charge,paux.charge);
 			ang = atan2(p.pos_y-paux.pos_y,p.pos_x-paux.pos_x);
-			/*if(force_size == particles)
-			{
-				printf("Deu merda!\n");
-				printf("Ultima colisao de id=%d com a outra particula de idaux=%d\n",id,(int)*it);
-				printf("Colisoes anteriores:\n");
-				for(int a = 0; a < force_size; a++)
-				{
-					printf("id=%d  com  idaux=%d\n",id,force_vector[thread_id][a][2]);
-				}
-				printf("b=%d  *it=%d\n",b,(int)*it);
-				print_used();
-				print_parray();
-				print_particle_position();
-				fflush(0);
-			}*/
 			force_vector[thread_id][force_size][0] = f*cos(ang);
 			force_vector[thread_id][force_size][1] = f*sin(ang);
-			//force_vector[thread_id][force_size][2] = (int)*it;
 			force_size++;
 			print(("Forca resultante em %d com dist = %lf\nX: %lf Y: %lf\n",id,dist,force_vector[thread_id][force_size-1][0],force_vector[thread_id][force_size-1][1]));
 		}
@@ -324,7 +312,7 @@ int main(int argc, char *argv[])
 	for(int i=0;i<particles;i++) calculate_particle_position(i,turn);
 	for(int i=0;i<iterations;i++)
 	{
-		#pragma omp parallel for schedule(static) 
+		#pragma omp parallel for schedule(static)
 		for(int id=0;id<particles;id++)
 		{
 			calculate_forces(id);

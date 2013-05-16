@@ -198,7 +198,6 @@ int collision_detection(int id,int thread_id, int position_x, int position_y, in
 	print(("id %d - tid %d - posx %d - posy %d - fsize %d  ",id,thread_id,position_x,position_y,force_size));
 	aux = particle_position[turn][position_x][position_y];
 	p = parray[turn][id];
-	int b = -5;
 	for(it = aux.begin(); it != aux.end(); it++)
 	{
 		paux = parray[turn][*it];
@@ -212,7 +211,6 @@ int collision_detection(int id,int thread_id, int position_x, int position_y, in
 			force_size++;
 			print(("Forca resultante em %d com dist = %lf\nX: %lf Y: %lf\n",id,dist,force_vector[thread_id][force_size-1][0],force_vector[thread_id][force_size-1][1]));
 		}
-		b = *it;
 	}
 	print(("collision OK!\n"));
 	return force_size;
